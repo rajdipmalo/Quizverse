@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/admin_dash.css">
+
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <h6 class="navbar-brand text-white mt-2 " >Admin Dashboard</h6>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/admin">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/users_manage">Users</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/admin/summary">Summary</a></li>
+                    <li class="nav-item"><a class="nav-link " href="/login">Logout</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <div class="dash-header d-flex justify-content-between align-items-center p-3 border-buttom">
+            <form action="/admin/search" >
+            <input type="text" class="form-control rounded-pill" placeholder="Search" name="search">
+            <select name="option"  class="form-select w-auto rounded-pill">
+                <option selected>Select</option>
+                <option value="user">User</option>
+                <option value="sub">Subject</option>
+                <option value="chap">Chapter</option>
+                <option value="quiz">Quiz</option>
+                <input type="submit" value="Search" class="btn btn-outline-success rounded-pill px-4">
+            </select>
+            </form>
+            <span class="fw-bold text-primary">Welcome {{my_user.username}}</span>
+        </div>
+
+        <div class="overflow-auto mt-3" style="max-height: 545px;">
+            <div class="row mt-4 ">
+                {%for subject in subjects %}
+                <div class="col-md-6 mb-3">
+                    <a href="{{ url_for('view_chapters',sub_id=subject.sub_id) }}" class="text-decoration-none text-dark">
+                    <div class="card p-3">
+                        <h5 class="text-center">{{subject.sub_name}}</h5>
+                        <div class="overflow-auto " style="max-height: 140px;">
+                            <table class="table">
+                                <thead>
+                                    <tr class="text-center">
+                                        <th>Chapter Name</th>
+                                        <th>No of Quizzes</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for chapter in subject.chapters %}
+                                    <tr class="text-center">
+                                        <td>{{ chapter.chap_name }}</td>
+                                        <td>{{ chapter.no_of_quizzes }}</td>
+                                        <td><a class="btn btn-sm btn-outline-dark " href="{{ url_for('edit_chap', chap_id = chapter.chap_id)}}">Edit</a> 
+                                            <a class="btn btn-sm btn-outline-danger" href="{{ url_for('delete_chap', chap_id = chapter.chap_id)}}">Delete</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="{{ url_for('add_chap', sub_id = subject.sub_id)}}" class="btn btn-primary bg-gradient py-2">+ Add Chapter</a>
+                        <div class="d-flex mt-2 justify-content-around">
+                            <a href="/edit_sub/{{ subject.sub_id }}" class="btn btn-outline-dark ">
+                                <span>Edit Subject</span>
+                            </a>
+                            <a href="/delete_sub/{{ subject.sub_id }}" class="btn btn-outline-danger ">
+                                <span>Delete Subject</span>
+                            </a>
+                        </div>
+                    </div>
+                </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+
+        <div class="d-flex justify-content-center align-items-center mt-3  gap-4">
+            <a href="/add_sub" class="btn btn-success d-flex align-items-center bg-gradient px-4 py-2 mb-4">
+                <span>Add Subject</span>
+            </a>
+            
+           
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+body {
+    background: linear-gradient(135deg, #dbeafe, #ecf2fa);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 20px;
+
+}
+
+#container{
+    width: 100%;
+    max-width: 450px;
+    padding: 20px;
+}
+
+#canvas{
+    background-color: #ffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0px 6px black;
+    transition: all 0.3s ease-in-out;
+}
+
+#canvas:hover{
+    transform: scale(1.02);
+}
+h2{
+    font-size: 24px;
+    letter-spacing: 1px;
+}
+
+

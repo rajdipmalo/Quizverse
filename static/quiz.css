@@ -1,0 +1,50 @@
+body{
+    background: linear-gradient(135deg,#dbeafe, #ecf2fa );
+    min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    margin: 0px;
+    padding: 20px;
+}
+
+.card{
+    max-width: 750px;
+    margin: 50px auto;
+    padding: 30px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.9);;
+    box-shadow: 0px 4px 10px rgb(0, 0, 0, 0.15);
+    
+    transition: transform 0.3s ease-in-out;
+}
+
+.card:hover{
+    transform: scale(1.02);
+}
+
+.q_num{
+    background: #c2dcc7;
+    color: #125522;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.time{
+    background: #c9e1fa;
+    padding: 8px 15px;
+    border-radius: 20px;
+    display: inline-block;
+    font-weight: bold;
+    font-size: 16px;
+    
+}
+
+.question-box{
+    
+    transition: transform 0.3s;
+}
+
+.question-box:hover{
+    transform: translateY(-3px);
+}

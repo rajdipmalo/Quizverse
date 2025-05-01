@@ -1,0 +1,14 @@
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.idea/
+.vscode/
+.eclipse/
+node_modules/
+build/
+dist/
+*.log
+logs/
+*.tmp
+tmp/
