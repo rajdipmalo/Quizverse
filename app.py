@@ -6,7 +6,6 @@ import os
 app = None
 def new_app():
     app = Flask(__name__)
-    app.debug = True
     dir = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(dir,'models','instance','quiz.sqlite3')
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{path}"
