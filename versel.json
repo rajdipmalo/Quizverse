@@ -6,10 +6,7 @@
       "use": "@vercel/python"
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app.py"
-    }
-  ]
+  "env": {
+    "DATABASE_URL": "postgres://neondb_owner:npg_WKLq7HBplh8z@ep-sparkling-term-a4xsiiae-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
+  }
 }
