@@ -2,19 +2,32 @@
 <html>
 <head>
     <title>User Summary</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+
     <link rel="stylesheet" href="/static/admin_dash.css">
+    <style>
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg">
         <div class="container">
-            <h6 class="navbar-brand text-white mt-2 " >{{my_user.username}}'s Summary</h6>
+            <h6 class="navbar-brand text-white mt-2">{{my_user.username}}'s Summary</h6>
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="/home/{{ my_user.username }}/{{ my_user.id }}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="/{{ my_user.username }}/{{ my_user.id }}/scores">Scores</a></li>
                     <li class="nav-item"><a class="nav-link" href="/{{ my_user.username }}/summary">Summary</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/login">Logout</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/edit_user/{{ my_user.id }}">Edit Profile</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
                 </ul>
             </div>
         </div>
@@ -22,37 +35,37 @@
 
     <div class="container mt-5">
         <div class="card p-4 rounded-3">
-            <h2 class="text-center mb-2 text-primary">Summary for {{ my_user.username }}</h2>
+            <h2 class="text-center mb-2" style="color: #4361ee;">Summary for {{ my_user.username }}</h2>
             <hr>
             <div class="row">
                 <div class="col-md-6">
-                    <div class="p-3 ">
-                    <p><strong>Full Name:</strong> {{ my_user.full_name }}</p>
-                    <p><strong>Email:</strong> {{ my_user.email }}</p>
-                    <p><strong>Qualification:</strong> {{ my_user.qualification }}</p>
-                    <p><strong>Date of Birth:</strong> {{ my_user.dob }}</p>
+                    <div class="p-3">
+                        <p><strong>Full Name:</strong> {{ my_user.full_name }}</p>
+                        <p><strong>Email:</strong> {{ my_user.email }}</p>
+                        <p><strong>Qualification:</strong> {{ my_user.qualification }}</p>
+                        <p><strong>Date of Birth:</strong> {{ my_user.dob.strftime("%d/%m/%Y") }}</p>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="p-3 ">
+                    <div class="p-3">
                         <p><strong>Total Quizzes Attempted:</strong> {{ total }}</p>
-                        <p><strong>Average Score:</strong> {{ avg|round(2) }}</p>
-                        <p><strong>Best Score:</strong> {{ best }}</p>
-                        <p><strong>Worst Score:</strong> {{ worst }}</p>
+                        <p><strong>Average Score:</strong> {{ "%.2f"|format(avg) }}%</p>
+                        <p><strong>Best Score:</strong> {{ best }}%</p>
+                        <p><strong>Worst Score:</strong> {{ worst }}%</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="card mt-4">
-            <h3 class="text-center">Subject wise Performance</h3>
+            <h3 class="text-center" style="color: #4361ee;">Subject wise Performance</h3>
             <div class="table-responsive text-center">
                 <table class="table">
                     <thead>
                         <tr>
-                            <th class="rounded-start bg-primary bg-gradient text-white">Subject</th>
-                            <th  class="bg-primary bg-gradient text-white">Quizzes Attempts</th>
-                            <th class="rounded-end bg-primary bg-gradient text-white">Average Score</th>
+                            <th class="rounded-start custom-header text-white">Subject</th>
+                            <th class="custom-header text-white">Quizzes Attempts</th>
+                            <th class="rounded-end custom-header text-white">Average Score</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -60,34 +73,183 @@
                         <tr>
                             <td>{{ row[0] }}</td>
                             <td>{{ row[1] }}</td>
-                            <td>{{ row[2] }}</td>
+                            <td>{{ row[3] }}%</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-        <div class="row mb-5">
+        
+        <div class="row mb-5 mt-4 g-0">
             <div class="col-md-6">
-                <div class="mt-4 card text-center">
-                    <div class="card-body">
-                        <h2>Performance Chart</h2>
-                    <img src="{{ url_for('static',filename=username+'_performance.png')}}" alt="Performance Chart" style="width: 400px; height:auto;">
+                <div class="card p-4 mx-3">
+                    <h4 class="text-center" style="color: #4361ee;">Average scores per Subject. </h4>
+                    <div class="chart-container">
+                        <canvas id="avgScoreChart"></canvas>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="mt-4 card text-center">
-                    <div class="card-body">
-                        <h2>Performace Trend</h2>
-                    <img src="{{ url_for('static',filename=username+'_trend.png')}}" alt="Performance Trend" style="width: 400px; height:auto;">
+            <div class="col-md-6 d-flex justify-content-center">
+                <div class="card p-4 w-100">
+                    <h4 class="text-center" style="color: #4361ee;">Attempts per subject.</h4>
+                    <div class="chart-container d-flex justify-content-center">
+                        <canvas id="attemptDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 d-flex justify-content-center mt-4">
+                <div class="card p-4" style="max-width: 700px; width: 100%;">
+                    <h4 class="text-center" style="color: #4361ee;">Scores Over Time (%) of all the attempts.</h4>
+                    <div class="chart-container">
+                        <canvas id="scoreChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="text-center mt-2 mb-5"><a href="/home/{{ my_user.username }}/{{ my_user.id }}" class="btn btn-outline-danger">Back to Dashboard</a></div>
-
+        
+        <div class="text-center mt-2 mb-5">
+            <a href="/home/{{ my_user.username }}/{{ my_user.id }}" class="btn btn-outline-danger mb-3">Back to Dashboard</a>
+        </div>
     </div>
+
+
+<script>
     
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    const scoreChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ score_dates | tojson }},
+            datasets: [{
+                label: 'Score (%)',
+                data: {{ score_data | tojson }},
+                fill: true,
+                borderColor: '#00b894',
+                backgroundColor: 'rgba(0, 184, 148, 0.15)',
+                pointBackgroundColor: '#00b894',
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${context.parsed.y}%`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: 100,
+                    title: {
+                        display: true,
+                        text: 'Score (%)'
+                    }
+                }
+            }
+        }
+    });
+
+   
+    const avgScoreCtx = document.getElementById('avgScoreChart').getContext('2d');
+    const avgScoreChart = new Chart(avgScoreCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ bar_labels | tojson }},
+            datasets: [{
+                label: 'Average Score per Subject',
+                data: {{ bar_data | tojson }},
+                backgroundColor: [
+                    '#ff6b6b', 
+                    '#feca57',
+                    '#48dbfb', 
+                    '#1dd1a1', 
+                    '#5f27cd', 
+                    '#ff9f43', 
+                    '#54a0ff', 
+                    '#00d2d3' 
+                ],
+                borderColor: '#ffffff',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Subjects'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Average Score (%)'
+                    }
+                }
+            }
+        }
+    });
+
+    
+    const attemptDistCtx = document.getElementById('attemptDistributionChart').getContext('2d');
+    const attemptDistributionChart = new Chart(attemptDistCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ doughnut_labels | tojson }},
+            datasets: [{
+                label: 'Attempt Distribution by Subject',
+                data: {{ doughnut_data | tojson }},
+                backgroundColor: [
+                    '#ff9ff3',
+                    '#feca57', 
+                    '#1dd1a1',
+                    '#ff6b6b',
+                    '#54a0ff', 
+                    '#00d2d3'  
+                ],
+                borderColor: [
+                    '#ffffff',
+                    '#ffffff',
+                    '#ffffff',
+                    '#ffffff',
+                    '#ffffff',
+                    '#ffffff'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${context.label}: ${context.raw} attempts`
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+
+
 </body>
 </html>

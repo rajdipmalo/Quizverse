@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>{{ quiz.quiz_name}}</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/quiz.css">
 
@@ -11,7 +12,13 @@
 
      <script>
         let duration = parseInt("{{ duration | default(0) }}") * 60;
-        let dura = localStorage.getItem("storage") ? parseInt(localStorage.getItem("storage")) : duration;
+        let dura = localStorage.getItem("storage");
+
+        if (dura === null) {
+            dura = duration;  
+        } else {
+            dura = parseInt(dura);
+        }
 
         function countdown(){
             let m = Math.floor(dura/60);
@@ -32,6 +39,11 @@
             }
         }
 
+        function goToDashboard() {
+            localStorage.removeItem("storage");
+            window.location.href = `/home/{{ username }}/{{ user_id }}?reset=true`;
+        }
+        
         window.onload = countdown;
     </script> 
 
@@ -42,38 +54,49 @@
     
     
     
-    
+    <div class="bubble-bg" id="bubble-bg"></div>
+
 
 
     <div class="container mt-5">
-        <h3 class="text-center mt-4 ">{{ quiz.quiz_name }}</h3>
+        <h3 class="text-center mt-4 text-white">{{ quiz.quiz_name }}</h3>
         <div class="card">
             <div class="d-flex justify-content-between align-items-center">
                 <span class="q_num">Q.No. {{ ques_index +1 }}/{{ total_questions }}</span>
                 <span class="time" id="time">{{ duration }}:00</span>
             </div>
-            <div class="bg-primary text-white text-center pt-2 pb-2 rounded-3 mt-3 mb-3 question-box">
+            <div class="text-white text-center pt-2 pb-2 rounded-3 mt-3 mb-3 question-box" style="background: linear-gradient(135deg, rgba(47, 47, 162, 0.9), rgba(76, 76, 255, 0.9));">
                 <h3 style="margin-bottom: 0.3rem;">{{ question.ques_text }}</h3>
             </div>
 
             <form id="quiz" method="POST" action="/start_quiz/{{ username }}/{{ user_id }}/quiz/{{ quiz.quiz_id }}/ques_index/{{ ques_index }}">
                 <div class="form-check text-start mb-2">
-                    <input class="form-check-input" type="radio" name="ans" id="opt1" value="{{ question.option1}}">
+                    <input class="form-check-input" type="radio" name="ans" id="opt1" value="{{ question.option1}}" {% if selected_ans == question.option1 %}checked{% endif %}>
                     <label class="form-check-label" for="opt1">{{ question.option1 }}</label>
                 </div>
                 <div class="form-check text-start mb-2">
-                    <input class="form-check-input" type="radio" name="ans" id="opt2" value="{{ question.option2}}">
+                    <input class="form-check-input" type="radio" name="ans" id="opt2" value="{{ question.option2}}" {% if selected_ans == question.option2 %}checked{% endif %}>
                     <label class="form-check-label" for="opt2">{{ question.option2 }}</label>
                 </div>
                 <div class="form-check text-start mb-2">
-                    <input class="form-check-input" type="radio" name="ans" id="opt3" value="{{ question.option3}}">
+                    <input class="form-check-input" type="radio" name="ans" id="opt3" value="{{ question.option3}}" {% if selected_ans == question.option3 %}checked{% endif %}>
                     <label class="form-check-label" for="opt3">{{ question.option3}}</label>
                 </div>
                 <div class="form-check text-start mb-2">
-                    <input class="form-check-input" type="radio" name="ans" id="opt4" value="{{ question.option4}}">
+                    <input class="form-check-input" type="radio" name="ans" id="opt4" value="{{ question.option4}}" {% if selected_ans == question.option4 %}checked{% endif %}>
                     <label class="form-check-label" for="opt4">{{ question.option4}}</label>
                 </div>
-                <div class="mt-4 d-flex justify-content-around">
+                <div class="mt-4 d-flex justify-content-between">
+                    <a href="#" class="btn btn-secondary" onclick="goToDashboard()">Dashboard</a>
+
+
+                    {% if ques_index > 0 %}
+                    <a href="/start_quiz/{{ username }}/{{ user_id }}/quiz/{{ quiz.quiz_id }}/ques_index/{{ ques_index - 1 }}" class="btn btn-info">Previous</a>
+                    {% else %}
+                    <button type="button" class="btn btn-info" disabled >Previous</button>
+                    {% endif %}
+
+
                     {% if ques_index +1 == total_questions %}
                     <button type="submit" class="btn btn-success">Submit</button>
                     {% else %}
@@ -83,6 +106,11 @@
             </form>
         </div>
     </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="/static/bubbles.js"></script>
 
 </body>
 </html>

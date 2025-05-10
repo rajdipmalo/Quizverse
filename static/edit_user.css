@@ -1,5 +1,6 @@
 body {
     background: linear-gradient(135deg, #dbeafe, #ecf2fa);
+    
     display: flex;
     justify-content: center;
     align-items: center;
@@ -7,21 +8,24 @@ body {
     font-family: 'Poppins', sans-serif;
     margin: 0;
     padding: 20px;
-
 }
 
 #container{
     width: 100%;
     max-width: 450px;
     padding: 20px;
+
 }
 
 #canvas{
-    background-color: #ffff;
+    background-color: #ffffff;
     padding: 30px;
     border-radius: 12px;
-    box-shadow: 0px 6px black;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease-in-out;
+    display:  flex;
+    flex-direction: column;
+    
 }
 
 #canvas:hover{
@@ -30,6 +34,7 @@ body {
 h2{
     font-size: 24px;
     letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 30px;
+    color: #4361ee;
 }
-
-

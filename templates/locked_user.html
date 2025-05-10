@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Incorrect Password</title>
+    <title>Account Locked</title>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <style >
-        body{
+    <style>
+        body {
             background: linear-gradient(135deg, rgba(47, 47, 162, 0.9), rgba(76, 76, 255, 0.9));
             font-family: 'Poppins', sans-serif;
             display: flex;
@@ -13,30 +13,39 @@
             align-items: center;
             height: 100vh;
             text-align: center;
-            
         }
-    
-        .container{
+
+        .container {
             background: white;
             padding: 60px;
-            max-width:700px;
+            max-width: 700px;
             border-radius: 10px;
             box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.1);
         }
-    
-        h1{
-            color: #d9534f;
+
+        h1 {
+            color: rgb(217, 45, 32);
             font-size: 2.5rem;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
-        .card{
+        p {
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        .card {
             box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
         }
-        .card:hover{
+
+        .card:hover {
             transform: translateY(-4px);
             box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-custom {
+            margin-top: 20px;
         }
 
 
@@ -74,10 +83,7 @@
                 bottom: 100%;
             }
         }
-        
-        
     
-        
     </style>
 </head>
 <body>
@@ -85,13 +91,32 @@
     <div class="bubble-bg" id="bubble-bg"></div>
 
     <div class="container card">
-        <h1 >Incorrect Password!</h1>
-        <h5><a href="/login" class="btn btn-danger bg-gradient px-4 py-2">Go Back</a></h5>
+        <h1>Account Locked</h1>
+        <p class="lead">Too many failed login attempts.</p>
+
+        {% if lock_time_remaining %}
+            <p>Try again in <strong>{{ lock_time_remaining }}</strong> minute(s).</p>
+        {% else %}
+            <p>Try again shortly.</p>
+        {% endif %}
+
+        <p>You will be redirected automatically when the lock expires.</p>
+
+        <a href="/login" class="btn btn-dark bg-gradient px-4 py-2 btn-custom">Go Back to Login</a>
     </div>
 
+    {% if lock_seconds_remaining %}
+    <script>
+        const secondsRemaining = {{ lock_seconds_remaining }};
+        setTimeout(() => {
+            window.location.href = "/login";
+        }, secondsRemaining * 1000);
+    </script>
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script src="/static/bubbles.js"></script>
 
 </body>
+</html>
