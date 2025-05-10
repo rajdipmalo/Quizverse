@@ -16,8 +16,9 @@ def new_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = "your_secret_key"
     
-    # PostgreSQL Database URI
-    app.config["SQLALCHEMY_DATABASE_URI"] = "postgres://neondb_owner:npg_WKLq7HBplh8z@ep-sparkling-term-a4xsiiae-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
+    dir = os.path.abspath(os.path.dirname(__file__))
+    path = os.path.join(dir,'models','instance','quiz.sqlite3')
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{path}"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
     
@@ -38,6 +39,7 @@ def new_app():
             now = datetime.utcnow()
             last_activity = session.get('last_activity')
             
+            
             if last_activity:
                 elapsed = (now - datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")).total_seconds()
                 if elapsed > 1800:  
@@ -46,6 +48,10 @@ def new_app():
                     return redirect(url_for("login"))
                 
             session['last_activity'] = now.strftime("%Y-%m-%d %H:%M:%S")
+        
+    if not os.path.exists(path):
+        db.create_all()
+        new_admin()
         
     return app
 
@@ -67,6 +73,7 @@ def new_admin():
             qualification="Admin",
             dob=datetime.strptime("2025-03-20", "%Y-%m-%d").date(),
             type="admin"
+            
         )
         db.session.add(admin)
         db.session.commit()
