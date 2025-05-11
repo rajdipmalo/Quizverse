@@ -16,6 +16,8 @@ from models.models import *
 bcrypt = Bcrypt(app)
 
 
+
+
 @app.route("/")
 def landing():
     return render_template("landing.html")
