@@ -22,20 +22,20 @@ app = None
 def create_app():
     global app
     app = Flask(__name__)
-    
+
     # ======================
     # Configuration
     # ======================
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "your_fallback_secret_key")
-    
+
     # PostgreSQL configuration
     DATABASE_URL = os.getenv('DATABASE_URL')
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL environment variable is not set")
-    
+
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    
+
     app.config.update({
         "SQLALCHEMY_DATABASE_URI": DATABASE_URL,
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
@@ -43,46 +43,48 @@ def create_app():
         "SQLALCHEMY_ENGINE_OPTIONS": {
             "pool_pre_ping": True,
             "pool_recycle": 300,
-            "pool_size": 3,       # Optimized for Render free tier
+            "pool_size": 3,
             "max_overflow": 0,
             "pool_timeout": 5
         }
     })
 
-    # ======================
-    # Initialize Extensions
-    # ======================
-    # Wait for database to be ready
-    time.sleep(2)
+    # Initialize extensions
+    time.sleep(2)  # Wait for DB to be ready (esp. in cloud environments)
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
-    
+
+    # Database connection health
+    @event.listens_for(Engine, "engine_connect")
+    def ping_connection(connection, branch):
+        connection.execute(text("SELECT 1"))
+
     # Create app context
     with app.app_context():
-        # ======================
-        # Database Setup
-        # ======================
-        @event.listens_for(Engine, "engine_connect")
-        def ping_connection(connection, branch):
-            """Maintains PostgreSQL connection health"""
-            connection.execute(text("SELECT 1"))
-        
-        try:
-            db.create_all()
-            create_admin_user()
-        except Exception as e:
-            logger.error(f"Database initialization failed: {str(e)}")
-            # Retry after delay
-            time.sleep(5)
-            db.create_all()
+
+        def try_init_db():
+            try:
+                db.create_all()
+                create_admin_user()
+            except Exception as e:
+                logger.error(f"Database initialization failed: {str(e)}")
+                db.session.rollback()
+                db.session.remove()
+                time.sleep(5)
+                try:
+                    db.create_all()
+                    create_admin_user()
+                except Exception as e2:
+                    logger.critical(f"Retry failed: {str(e2)}")
+
+        try_init_db()
 
     # ======================
-    # Request Handlers
+    # Middleware
     # ======================
     @app.before_request
     def verify_db_connection():
-        """Auto-recover from PostgreSQL disconnects"""
         try:
             db.session.execute(text("SELECT 1"))
         except Exception as e:
@@ -95,18 +97,22 @@ def create_app():
 
     @app.before_request
     def session_timeout_check():
-        """Session management"""
         if current_user.is_authenticated and current_user.type != 'admin':
             session.permanent = True
             last_activity = session.get('last_activity')
             if last_activity:
                 elapsed = (datetime.utcnow() - 
-                         datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")).total_seconds()
-                if elapsed > 900:  # 15 minutes timeout
+                           datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")).total_seconds()
+                if elapsed > 900:
                     logout_user()
                     session.clear()
                     return redirect(url_for("login"))
             session['last_activity'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    @app.after_request
+    def log_response(response):
+        logger.info(f"{request.method} {request.path} => {response.status}")
+        return response
 
     # ======================
     # Health Check Endpoint
@@ -119,12 +125,6 @@ def create_app():
         except Exception as e:
             logger.error(f"Health check failed: {str(e)}")
             return f"DB Error: {str(e)}", 500
-
-    # Log all requests
-    @app.after_request
-    def log_response(response):
-        logger.info(f"{request.method} {request.path} => {response.status}")
-        return response
 
     return app
 
