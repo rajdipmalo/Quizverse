@@ -11,7 +11,11 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
-    database:
-      name: quizverse-db
-      postgresVersion: 16
+      - key: DATABASE_URL
+        fromDatabase:
+          name: quizverse-db
+          property: connectionString
     healthCheckPath: /healthcheck
+databases:
+  - name: quizverse-db
+    postgresVersion: 16
