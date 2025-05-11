@@ -2,16 +2,14 @@ services:
   - type: web
     name: quizverse
     runtime: python
-    region: mumbai  # Uses AWS Mumbai region (ap-south-1)
+    region: oregon  # Free tier only available in Oregon
+    plan: free      # Explicitly set to free
     buildCommand: "pip install --no-cache-dir -r requirements.txt"
-    startCommand: "gunicorn --workers 4 --worker-class gevent --timeout 120 --bind :$PORT app:app"
+    startCommand: "gunicorn --workers 1 --timeout 60 --bind :$PORT app:app"  # Reduced workers
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: FLASK_ENV
         value: production
-      - key: TZ
-        value: Asia/Kolkata  # Sets Indian timezone
-    database:
-      name: quizverse-db
-      postgresVersion: 16  # Latest stable PostgreSQL
+      - key: SQLALCHEMY_ENGINE_OPTIONS  # Optimize for low RAM
+        value: '{"pool_size": 5, "max_overflow": 0, "pool_pre_ping": true}'
