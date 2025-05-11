@@ -2,14 +2,16 @@ services:
   - type: web
     name: quizverse
     runtime: python
-    region: oregon  # Free tier only available in Oregon
-    plan: free      # Explicitly set to free
+    region: oregon
+    plan: free
     buildCommand: "pip install --no-cache-dir -r requirements.txt"
-    startCommand: "gunicorn --workers 1 --timeout 60 --bind :$PORT app:app"  # Reduced workers
+    startCommand: "gunicorn --workers 1 --threads 2 --timeout 45 --bind :$PORT app:app"
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: FLASK_ENV
         value: production
-      - key: SQLALCHEMY_ENGINE_OPTIONS  # Optimize for low RAM
-        value: '{"pool_size": 5, "max_overflow": 0, "pool_pre_ping": true}'
+    database:
+      name: quizverse-db
+      postgresVersion: 16
+    healthCheckPath: /healthcheck
