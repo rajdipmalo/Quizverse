@@ -1,161 +1,93 @@
-from flask import Flask, session, redirect, url_for, request
+from flask import Flask, session, redirect, url_for
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, current_user, logout_user
 from models.models import db, User
-from sqlalchemy import text, event, Engine
+from sqlalchemy import text
 from datetime import datetime, timedelta
 import os
-import time
-import logging
 
-# Initialize extensions
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 app = None
 
-def create_app():
+def new_app():
     global app
     app = Flask(__name__)
-
-    # ======================
-    # Configuration
-    # ======================
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "your_fallback_secret_key")
-
-    # PostgreSQL configuration
-    DATABASE_URL = os.getenv('DATABASE_URL')
+    
+    # Configure app
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "your_default_secret_key")
+    
+    # Set up PostgreSQL database URI from environment variable
+    DATABASE_URL = os.getenv('postgresql://quisverse_db_user:iv7AlGqbqyPNkaLvJ88QUji6VL5TCvGx@dpg-d0g33kruibrs73f77u60-a/quisverse_dbL')
     if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL environment variable is not set")
-
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-    app.config.update({
-        "SQLALCHEMY_DATABASE_URI": DATABASE_URL,
-        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-        "PERMANENT_SESSION_LIFETIME": timedelta(minutes=15),
-        "SQLALCHEMY_ENGINE_OPTIONS": {
-            "pool_pre_ping": True,
-            "pool_recycle": 300,
-            "pool_size": 3,
-            "max_overflow": 0,
-            "pool_timeout": 5
-        }
-    })
-
-    # Initialize extensions
-    time.sleep(2)  # Wait for DB to be ready (esp. in cloud environments)
+        raise RuntimeError("DATABASE_URL environment variable is not set.")
+    
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
+    
+    # Initialize the extensions
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
-
-    # Database connection health
-    @event.listens_for(Engine, "engine_connect")
-    def ping_connection(connection, branch):
-        connection.execute(text("SELECT 1"))
-
-    # Create app context
-    with app.app_context():
-        def try_init_db():
-            try:
-                db.create_all()
-                create_admin_user()
-            except Exception as e:
-                logger.error(f"Database initialization failed: {str(e)}")
-                db.session.rollback()
-                db.session.remove()
-                time.sleep(5)
-                try:
-                    db.create_all()
-                    create_admin_user()
-                except Exception as e2:
-                    logger.critical(f"Retry failed: {str(e2)}")
-
-        try_init_db()
-
-    # ======================
-    # Middleware
-    # ======================
+    
+    app.app_context().push()
+    
     @app.before_request
-    def verify_db_connection():
-        try:
-            db.session.execute(text("SELECT 1"))
-        except Exception as e:
-            logger.error(f"Database connection error: {str(e)}")
-            db.session.rollback()
-            db.session.remove()
-            if "does not exist" in str(e):
-                with app.app_context():
-                    db.create_all()
-
-    @app.before_request
+    def enforce_foreign_keys():
+        db.session.execute(text("PRAGMA foreign_keys=ON"))
+    
+    @app.before_request    
     def session_timeout_check():
+        session.permanent = True
         if current_user.is_authenticated and current_user.type != 'admin':
-            session.permanent = True
+            now = datetime.utcnow()
             last_activity = session.get('last_activity')
+            
             if last_activity:
-                elapsed = (datetime.utcnow() - 
-                           datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")).total_seconds()
-                if elapsed > 900:
+                elapsed = (now - datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")).total_seconds()
+                if elapsed > 1800:  # 30 minutes
                     logout_user()
                     session.clear()
                     return redirect(url_for("login"))
-            session['last_activity'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-
-    @app.after_request
-    def log_response(response):
-        logger.info(f"{request.method} {request.path} => {response.status}")
-        return response
-
-    # ======================
-    # Health Check Endpoint
-    # ======================
-    @app.route('/healthcheck')
-    def healthcheck():
-        try:
-            db.session.execute(text("SELECT 1"))
-            return "OK", 200
-        except Exception as e:
-            logger.error(f"Health check failed: {str(e)}")
-            return f"DB Error: {str(e)}", 500
-
+                
+            session['last_activity'] = now.strftime("%Y-%m-%d %H:%M:%S")
+        
+    # Create database if not exist and add admin user
+    with app.app_context():
+        if not db.engine.dialect.has_table(db.session.bind, 'user'):  # Check if table exists
+            db.create_all()
+            new_admin()
+        
     return app
 
-def create_admin_user():
-    """Initialize admin user if none exists"""
-    if not User.query.filter_by(type='admin').first():
-        try:
-            admin = User(
-                username="Quizverse",
-                email="quizverse@example.com",
-                password=bcrypt.generate_password_hash("Quizverse@712503").decode('utf-8'),
-                full_name="Admin User",
-                type="admin",
-                qualification="Admin",
-                dob=datetime.strptime("2000-01-01", "%Y-%m-%d").date()
-            )
-            db.session.add(admin)
-            db.session.commit()
-            logger.info("Admin user created")
-        except Exception as e:
-            db.session.rollback()  # Rollback if there was an error
-            logger.error(f"Error creating admin user: {str(e)}")
-
-# Initialize app
-app = create_app()
-
-# User loader
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Import controllers (avoid circular imports)
+def new_admin():
+    """Create admin user if not exists"""
+    admin = User.query.filter_by(type='admin').first()
+    if not admin:
+        hashed_password = bcrypt.generate_password_hash("Quizverse@712503").decode("utf-8")
+        admin = User(
+            username="Quizverse",
+            email="Quizverse@gmail.com",
+            password=hashed_password,
+            full_name="Quizverse",
+            qualification="Admin",
+            dob=datetime.strptime("2025-03-20", "%Y-%m-%d").date(),
+            type="admin"
+        )
+        db.session.add(admin)
+        db.session.commit()
+
+# Initialize app
+app = new_app()
+
+# Import controllers after app initialization to avoid circular import
 from controllers.controllers import *
 
 if __name__ == "__main__":
