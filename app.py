@@ -33,11 +33,16 @@ def create_app():
     bcrypt.init_app(app)
     login_manager.init_app(app)
 
-    # Register database initialization
+    # Register database setup
     register_database_setup(app)
 
     # Register middleware
     register_middleware(app)
+
+    # Import controllers after app is created
+    with app.app_context():
+        from controllers.controllers import bp
+        app.register_blueprint(bp)
 
     return app
 
@@ -46,36 +51,39 @@ def register_database_setup(app):
     @app.cli.command("init-db")
     def init_db():
         """Initialize the database"""
-        with app.app_context():
-            initialize_database(app)
+        initialize_database(app)
 
-    # Initialize on first request if not done
-    @app.before_first_request
+    # Modern alternative to before_first_request
+    first_request_handled = False
+    
+    @app.before_request
     def ensure_db_initialized():
-        with app.app_context():
-            if not db.engine.dialect.has_table(db.engine, "user"):
-                initialize_database(app)
+        nonlocal first_request_handled
+        if not first_request_handled:
+            initialize_database(app)
+            first_request_handled = True
 
 def initialize_database(app):
     """Safe database initialization"""
-    max_retries = 3
-    retry_delay = 5
-    
-    for attempt in range(max_retries):
-        try:
-            db.create_all()
-            create_admin_user(db)
-            app.logger.info("Database initialized successfully")
-            break
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
-            if attempt == max_retries - 1:
-                app.logger.critical("Max retries reached")
-                raise
-            time.sleep(retry_delay)
-        finally:
-            db.session.remove()
+    with app.app_context():
+        max_retries = 3
+        retry_delay = 5
+        
+        for attempt in range(max_retries):
+            try:
+                db.create_all()
+                create_admin_user(app)
+                app.logger.info("Database initialized successfully")
+                break
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
+                if attempt == max_retries - 1:
+                    app.logger.critical("Max retries reached")
+                    raise
+                time.sleep(retry_delay)
+            finally:
+                db.session.remove()
 
 def create_admin_user(app):
     """Create admin user if not exists"""
@@ -116,11 +124,7 @@ app = create_app()
 # User loader
 @login_manager.user_loader
 def load_user(user_id):
-    with app.app_context():
-        return User.query.get(int(user_id))
-
-# Import controllers after app creation
-from controllers.controllers import *
+    return User.query.get(int(user_id))
 
 if __name__ == '__main__':
     app.run()
