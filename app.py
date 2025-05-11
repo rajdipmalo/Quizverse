@@ -62,7 +62,6 @@ def create_app():
 
     # Create app context
     with app.app_context():
-
         def try_init_db():
             try:
                 db.create_all()
@@ -131,18 +130,22 @@ def create_app():
 def create_admin_user():
     """Initialize admin user if none exists"""
     if not User.query.filter_by(type='admin').first():
-        admin = User(
-            username="Quizverse",
-            email="quizverse@example.com",
-            password=bcrypt.generate_password_hash("Quizverse@712503").decode('utf-8'),
-            full_name="Admin User",
-            type="admin",
-            qualification="Admin",
-            dob=datetime.strptime("2000-01-01", "%Y-%m-%d").date()
-        )
-        db.session.add(admin)
-        db.session.commit()
-        logger.info("Admin user created")
+        try:
+            admin = User(
+                username="Quizverse",
+                email="quizverse@example.com",
+                password=bcrypt.generate_password_hash("Quizverse@712503").decode('utf-8'),
+                full_name="Admin User",
+                type="admin",
+                qualification="Admin",
+                dob=datetime.strptime("2000-01-01", "%Y-%m-%d").date()
+            )
+            db.session.add(admin)
+            db.session.commit()
+            logger.info("Admin user created")
+        except Exception as e:
+            db.session.rollback()  # Rollback if there was an error
+            logger.error(f"Error creating admin user: {str(e)}")
 
 # Initialize app
 app = create_app()
