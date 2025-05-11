@@ -11,6 +11,7 @@ from app import db
 import os
 
 
+
 from models.models import *
 
 bcrypt = Bcrypt(app)

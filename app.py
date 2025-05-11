@@ -5,126 +5,81 @@ from models.models import db, User
 from sqlalchemy import text
 from datetime import datetime, timedelta
 import os
-import time
 
-# Initialize extensions outside app factory
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 
-def create_app():
+app = None
+def new_app():
+    global app
     app = Flask(__name__)
+    app.config["SECRET_KEY"] = "your_secret_key"
     
-    # Configuration
-    app.config.update({
-        "SECRET_KEY": os.getenv("SECRET_KEY", "fallback-secret-key"),
-        "SQLALCHEMY_DATABASE_URI": os.getenv("DATABASE_URL"),
-        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-        "PERMANENT_SESSION_LIFETIME": timedelta(minutes=30),
-        "SQLALCHEMY_ENGINE_OPTIONS": {
-            "pool_pre_ping": True,
-            "pool_recycle": 300,
-            "pool_timeout": 30
-        }
-    })
-
-    # Initialize extensions with app
+    dir = os.path.abspath(os.path.dirname(__file__))
+    path = os.path.join(dir,'models','instance','quiz.sqlite3')
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{path}"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
+    
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
-
-    # Register database setup
-    register_database_setup(app)
-
-    # Register middleware
-    register_middleware(app)
-
-    # Import controllers after app is created
-    with app.app_context():
-        from controllers.controllers import bp
-        app.register_blueprint(bp)
-
-    return app
-
-def register_database_setup(app):
-    """Register database setup commands"""
-    @app.cli.command("init-db")
-    def init_db():
-        """Initialize the database"""
-        initialize_database(app)
-
-    # Modern alternative to before_first_request
-    first_request_handled = False
+    
+    app.app_context().push()
     
     @app.before_request
-    def ensure_db_initialized():
-        nonlocal first_request_handled
-        if not first_request_handled:
-            initialize_database(app)
-            first_request_handled = True
-
-def initialize_database(app):
-    """Safe database initialization"""
-    with app.app_context():
-        max_retries = 3
-        retry_delay = 5
-        
-        for attempt in range(max_retries):
-            try:
-                db.create_all()
-                create_admin_user(app)
-                app.logger.info("Database initialized successfully")
-                break
-            except Exception as e:
-                db.session.rollback()
-                app.logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
-                if attempt == max_retries - 1:
-                    app.logger.critical("Max retries reached")
-                    raise
-                time.sleep(retry_delay)
-            finally:
-                db.session.remove()
-
-def create_admin_user(app):
-    """Create admin user if not exists"""
-    with app.app_context():
-        if not User.query.filter_by(type='admin').first():
-            admin = User(
-                username="Quizverse",
-                email="quizverse@example.com",
-                password=bcrypt.generate_password_hash("Quizverse@712503").decode('utf-8'),
-                full_name="Admin User",
-                type="admin",
-                qualification="Admin",
-                dob=datetime(2000, 1, 1).date()
-            )
-            db.session.add(admin)
-            db.session.commit()
-
-def register_middleware(app):
-    """Register all middleware"""
-    @app.before_request
+    def enforce_foreign_keys():
+        db.session.execute(text("PRAGMA foreign_keys=ON"))
+    
+    @app.before_request    
     def session_timeout_check():
+        session.permanent = True
         if current_user.is_authenticated and current_user.type != 'admin':
-            if 'last_activity' in session:
-                elapsed = (datetime.utcnow() - session['last_activity']).total_seconds()
-                if elapsed > 1800:  # 30 minutes
+            now = datetime.utcnow()
+            last_activity = session.get('last_activity')
+            
+            
+            if last_activity:
+                elapsed = (now - datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")).total_seconds()
+                if elapsed > 1800:  
                     logout_user()
                     session.clear()
-                    return redirect(url_for('login'))
-            session['last_activity'] = datetime.utcnow()
+                    return redirect(url_for("login"))
+                
+            session['last_activity'] = now.strftime("%Y-%m-%d %H:%M:%S")
+        
+    if not os.path.exists(path):
+        db.create_all()
+        new_admin()
+        
+    return app
 
-    @app.teardown_request
-    def shutdown_session(exception=None):
-        db.session.remove()
-
-# Create application instance
-app = create_app()
-
-# User loader
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-if __name__ == '__main__':
+
+def new_admin():
+    from models.models import User
+    admin = User.query.filter_by(type='admin').first()
+    if not admin:
+        hashed_password = bcrypt.generate_password_hash("Quizverse@712503").decode("utf-8")
+        admin = User(
+            username="Quizverse",
+            email="Quizverse@gmail.com",
+            password=hashed_password,
+            full_name = "Quizverse",
+            qualification="Admin",
+            dob=datetime.strptime("2025-03-20", "%Y-%m-%d").date(),
+            type="admin"
+            
+        )
+        db.session.add(admin)
+        db.session.commit()
+
+app = new_app()
+from controllers.controllers import *
+
+if __name__ == "__main__":
     app.run()
