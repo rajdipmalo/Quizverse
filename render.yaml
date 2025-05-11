@@ -1,9 +1,17 @@
 services:
   - type: web
-    name: quizverse  
+    name: quizverse
     runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app" 
+    region: mumbai  # Uses AWS Mumbai region (ap-south-1)
+    buildCommand: "pip install --no-cache-dir -r requirements.txt"
+    startCommand: "gunicorn --workers 4 --worker-class gevent --timeout 120 --bind :$PORT app:app"
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      - key: FLASK_ENV
+        value: production
+      - key: TZ
+        value: Asia/Kolkata  # Sets Indian timezone
+    database:
+      name: quizverse-db
+      postgresVersion: 16  # Latest stable PostgreSQL
