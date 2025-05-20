@@ -1,89 +1,41 @@
-import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+import os
+import urllib.parse
+from datetime import datetime, timedelta
 from flask import Flask, session, redirect, url_for
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, current_user, logout_user
-from models.models import db, User
-from datetime import datetime, timedelta
-import urllib.parse
-import os
+from models.models import db, User  # Make sure your models are correctly set up
 
+# Initialize Flask extensions
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 
 app = None
 
-def create_database_and_user_if_not_exists():
-    try:
-        conn = psycopg2.connect(
-            dbname="postgres",
-            user="postgres",               
-            password="712503",  
-            host="localhost",
-            port="5433"
-        )
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cur = conn.cursor()
-
-        cur.execute("SELECT 1 FROM pg_database WHERE datname='quizverse'")
-        exists = cur.fetchone()
-        if not exists:
-            cur.execute("CREATE DATABASE quizverse")
-            print("Database 'quizverse' created.")
-
-        cur.execute("SELECT 1 FROM pg_roles WHERE rolname='quizverse'")
-        user_exists = cur.fetchone()
-        if not user_exists:
-            cur.execute("CREATE USER quizverse WITH PASSWORD 'Quizverse@712503'")
-            print("User 'quizverse' created.")
-
-        # Connect to the new database to grant schema privileges
-        cur.close()
-        conn.close()
-
-        conn = psycopg2.connect(
-            dbname="quizverse",
-            user="postgres",               
-            password="712503",
-            host="localhost",
-            port="5433"
-        )
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cur = conn.cursor()
-
-        cur.execute("GRANT ALL PRIVILEGES ON DATABASE quizverse TO quizverse")
-        cur.execute("GRANT USAGE, CREATE ON SCHEMA public TO quizverse")
-        cur.execute("ALTER SCHEMA public OWNER TO quizverse")
-        print("Privileges on schema 'public' granted to 'quizverse'.")
-
-        cur.close()
-        conn.close()
-
-    except Exception as e:
-        print(f"Error creating database or user: {str(e)}")
-        exit(1)
-
-
-
 def new_app():
     global app
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = "your_secret_key"
-
-    # Use env vars or fallback
-    DB_USER = os.getenv("DB_USER", "quizverse")
-    DB_PASS_RAW = os.getenv("DB_PASSWORD", "Quizverse@712503")
-    DB_PASS = urllib.parse.quote_plus(DB_PASS_RAW)
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql://{DB_USER}:{DB_PASS}@localhost:5433/quizverse"
+    
+    # Secret key for session signing
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "default-secret-key")
+    
+    # Load DB connection from environment variable (Render provides DATABASE_URL)
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL environment variable not set")
+    
+    # Ensure the password is URL-encoded (Render's connection string is already safe)
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
 
+    # Initialize extensions with app
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
 
+    # Push app context so we can access db/session
     app.app_context().push()
 
     try:
@@ -92,9 +44,10 @@ def new_app():
             new_admin()
     except Exception as e:
         print(f"Database initialization failed: {str(e)}")
-        print("Please verify your PostgreSQL credentials and database settings")
+        print("Please verify your DATABASE_URL and other configurations.")
         exit(1)
 
+    # Middleware: Logout inactive users
     @app.before_request
     def session_timeout_check():
         session.permanent = True
@@ -113,16 +66,15 @@ def new_app():
 
     return app
 
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-
 def new_admin():
     admin = User.query.filter_by(type='admin').first()
     if not admin:
-        hashed_password = bcrypt.generate_password_hash("Quizverse@712503").decode("utf-8")
+        admin_password = os.getenv("ADMIN_PASSWORD", "Quizverse@712503")
+        hashed_password = bcrypt.generate_password_hash(admin_password).decode("utf-8")
         admin = User(
             username="Quizverse",
             email="Quizverse@gmail.com",
@@ -136,11 +88,11 @@ def new_admin():
         db.session.commit()
         print("Admin user created successfully")
 
-
 if __name__ == "__main__":
-    create_database_and_user_if_not_exists()
     app = new_app()
 
+    # Import routes/controllers AFTER app is created
     from controllers.controllers import *
 
-    app.run(debug=True)
+    # Run app
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
