@@ -716,7 +716,7 @@ def admin_summary():
         join quiz q on ts.q_id = q.quiz_id
         join chapter c on q.chapter_id = c.chap_id
         join subject s on c.subject_id = s.sub_id
-        join user u on ts.u_id = u.id
+        join "user" u on ts.u_id = u.id
         where  ts.total_score in (
            select distinct total_score from score ts2
            where ts2.q_id = ts.q_id order by total_score desc limit 1
@@ -728,7 +728,7 @@ def admin_summary():
     q2 = text("""
               select u.username, q.quiz_name, count(ts.q_id) as quiz_attemp,
               round(avg(ts.total_score),2) as avg_score
-              from user u left join score ts on u.id = ts.u_id 
+              from "user" u left join score ts on u.id = ts.u_id 
               left join quiz q on ts.q_id = q.quiz_id
               where u.type != 'admin'
               group by u.username, q.quiz_name 
