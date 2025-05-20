@@ -4,38 +4,34 @@ from datetime import datetime, timedelta
 from flask import Flask, session, redirect, url_for
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, current_user, logout_user
-from models.models import db, User  # Make sure your models are correctly set up
+from models.models import db, User  # Ensure models are properly defined
 
 # Initialize Flask extensions
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 
-app = None
-
 def new_app():
-    global app
     app = Flask(__name__)
     
     # Secret key for session signing
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "default-secret-key")
     
-    # Load DB connection from environment variable (Render provides DATABASE_URL)
+    # Load DB connection from environment variable
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL environment variable not set")
     
-    # Ensure the password is URL-encoded (Render's connection string is already safe)
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
 
-    # Initialize extensions with app
+    # Initialize extensions
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
 
-    # Push app context so we can access db/session
+    # App context for db
     app.app_context().push()
 
     try:
@@ -88,13 +84,12 @@ def new_admin():
         db.session.commit()
         print("Admin user created successfully")
 
-if __name__ == "__main__":
-    app = new_app()
-
-    # Import routes/controllers AFTER app is created
-    from controllers.controllers import *
-
-    # Run app
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
-    
+#  Create app instance globally so Gunicorn can detect it
 app = new_app()
+
+#  Import routes after app is initialized
+from controllers.controllers import *
+
+#  Run if executed directly (e.g., `python app.py`)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
