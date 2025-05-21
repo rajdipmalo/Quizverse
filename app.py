@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 from flask import Flask, session, redirect, url_for
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, current_user, logout_user
-from models.models import db, User  # Ensure models are properly defined
+from models.models import db, User  
 
-# Initialize Flask extensions
+
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -14,10 +14,10 @@ login_manager.login_view = 'login'
 def new_app():
     app = Flask(__name__)
     
-    # Secret key for session signing
+
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "default-secret-key")
     
-    # Load DB connection from environment variable
+
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL environment variable not set")
@@ -26,12 +26,12 @@ def new_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
 
-    # Initialize extensions
+
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
 
-    # App context for db
+
     app.app_context().push()
 
     try:
@@ -43,7 +43,7 @@ def new_app():
         print("Please verify your DATABASE_URL and other configurations.")
         exit(1)
 
-    # Middleware: Logout inactive users
+
     @app.before_request
     def session_timeout_check():
         session.permanent = True
@@ -53,7 +53,7 @@ def new_app():
 
             if last_activity:
                 elapsed = (now - datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")).total_seconds()
-                if elapsed > 1800:  # 30 minutes
+                if elapsed > 1800:  
                     logout_user()
                     session.clear()
                     return redirect(url_for("login"))
@@ -84,12 +84,11 @@ def new_admin():
         db.session.commit()
         print("Admin user created successfully")
 
-#  Create app instance globally so Gunicorn can detect it
+
 app = new_app()
 
-#  Import routes after app is initialized
+
 from controllers.controllers import *
 
-#  Run if executed directly (e.g., `python app.py`)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)

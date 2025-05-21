@@ -10,6 +10,6 @@ Timer Feature: Option to set time limits for quizzes.
 Technologies Used:
 
 Backend: Flask (Python)
-Database: SQLite with SQLAlchemy ORM
+Database: Postgresql with SQLAlchemy ORM
 Templating Engine: Jinja2
 Frontend: HTML, CSS, Bootstrap

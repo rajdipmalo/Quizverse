@@ -747,7 +747,7 @@ def admin_summary():
         """)
     attempt_data = db.session.execute(q3, {'start_date': thirty_days_ago}).fetchall()
     
-    # Format for Chart.js
+
     attempt_labels = [str(row[0]) for row in attempt_data]
     attempt_values = [row[1] for row in attempt_data]
     
@@ -756,7 +756,7 @@ def admin_summary():
         func.count(User.id).label('count')
     ).filter(User.type != 'admin').group_by(func.date(User.registration_date)).order_by('date').all()
 
-# Format for JavaScript
+
     user_growth = {
         'dates': [str(row.date) for row in user_growth_data],
         'counts': [row.count for row in user_growth_data]
@@ -764,7 +764,7 @@ def admin_summary():
 
 
     
-    # Quiz Participation
+
     quiz_participation_data = db.session.query(
         Quiz.quiz_name,
         func.count(QuizAttempt.attempt_id).label('attempt_count')
@@ -775,7 +775,7 @@ def admin_summary():
         'attempts': [row.attempt_count for row in quiz_participation_data]
     }
     
-    # User Participation
+
     user_participation_data = db.session.query(
         User.username,
         func.count(QuizAttempt.attempt_id).label('attempt_count')
